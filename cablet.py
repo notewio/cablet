@@ -4,25 +4,11 @@ import win32api
 import warp
 import sys
 from threadedvideo import ThreadedVideo
-
-  
-  
-# Configuration
-
-sw, sh = 1920, 1080             # Screen dimensions
-
-lowerBound = (60, 32, 28)       # Color mask boundaries, in HSV: if the color of a pixel is between the lower and upper bound, it will be counted.
-upperBound = (130, 255, 255)    # Note: OpenCV uses this weird HSV scaling: 0-179, 0-255, 0-255
-
-DILATE_ITERATIONS = 1           # How much to smoothen out the image: higher = less interference, less accurate point tracking
-CONTOURING = True               # Whether or not to do a largest contour check. If you've got good lighting (less interference) you can get away with just averaging all points instead.
-LERP = 0.8                      # Smooth things out through interpolation, at the cost of more input delay (0 for off, closer to 1 = less interp)
-NOSHAKE = 4                     # Don't move the cursor unless the difference is this large (manhattan, camera coordinates) (0 for off)
-GUI = True                      # Will open one initial window (for key events) without updates
+from configparser import ConfigParser
 
 
 
-# Misc utility
+##### Misc utility #####
 calibNames = (
     "top left",
     "top right",
@@ -33,14 +19,44 @@ windowName = "Camera Feed"
 def lerp(p1, p2, amt):
     return p1 + (p2 - p1) * amt
 
-    
 
-# Set up default warping: the very corners of the screen
-srcMat = [0, 0,     1, 0,
-          0, 1,     1, 1]
-dstMat = [0, 0,     1, 0,
-          0, 1,     1, 1]
-warpMat = warp.computeWarp(srcMat, dstMat)
+
+##### Configuration #####
+
+config = ConfigParser()
+config.read("settings.ini")
+
+# Screen dimensions
+sw = config.getint("Main", "screen_width")
+sh = config.getint("Main", "screen_height")
+
+# Color mask boundaries, in HSV: if the color of a pixel is between the lower and upper bound, it will be counted.
+# Note: OpenCV uses this weird HSV scaling: 0-179, 0-255, 0-255
+lowerBound = tuple([int(x) for x in config.get("Main", "color_lower_bound").split()])
+upperBound = tuple([int(x) for x in config.get("Main", "color_upper_bound").split()])
+
+# How much to smoothen out the image: higher = less interference, less accurate point tracking
+DILATE_ITERATIONS = config.getint("Main", "dilate_iterations")
+
+# Whether or not to do a largest contour check. If you've got good lighting (less interference) you can get away with just averaging all points instead.
+CONTOURING = config.getboolean("Main", "contouring")
+
+# Smooth things out through interpolation, at the cost of more input delay (0 for off, closer to 1 = less interp)
+INTERP = config.getfloat("Main", "interp")
+
+# Don't move the cursor unless the difference is this large (manhattan, camera coordinates) (0 for off)
+NOSHAKE = config.getint("Main", "noshake")
+
+
+# Warping
+srcMat = [float(x) for x in config.get("Calibration", "source").split()]
+dstMat = [0, 0,  1, 0,
+          0, 1,  1, 1]
+warpMat = [float(x) for x in config.get("Calibration", "warp").split()]
+
+
+
+##### Globals #####
 
 # Last known position of the pen, in camera coordinates
 center = (0, 0)
@@ -90,7 +106,7 @@ while True:
 
 
     newpos = tuple(c[c[:, :, 1].argmax()][0])
-    
+
     # Center point: less noisy but also unintuitive to use
     # M = cv2.moments(c)
     # m0 = M["m00"]
@@ -106,57 +122,56 @@ while True:
 
     # Set cursor position
     if enabled:
-        if LERP:
-            csx, csy = int(lerp(csx, sx, LERP)), int(lerp(csy, sy, LERP))
+        if INTERP:
+            csx, csy = int(lerp(csx, sx, INTERP)), int(lerp(csy, sy, INTERP))
             win32api.SetCursorPos((csx, csy))
         else:
             win32api.SetCursorPos((sx, sy))
 
 
     ##### Drawing #####
-            
-    if GUI:
-        # Mask overlay
-        display = cv2.addWeighted(frame, 1, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), 1, 0)
 
-        # Status text
-        status_1 = "output {} | ".format("on" if enabled else "off")
-        status_1 += "press c again for {} point".format(calibNames[calibrationState-1]) if calibrationState else "calibration done"
-        status_2 = "cam: {},{} | warp: {:.2f},{:.2f} | screen: {},{}".format(
-            *center,
-            wx, wy,
-            sx, sy,
+    # Mask overlay
+    display = cv2.addWeighted(frame, 1, cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), 1, 0)
+
+    # Status text
+    status_1 = "output {} | ".format("on" if enabled else "off")
+    status_1 += "press c again for {} point".format(calibNames[calibrationState-1]) if calibrationState else "calibration done"
+    status_2 = "cam: {},{} | warp: {:.2f},{:.2f} | screen: {},{}".format(
+        *center,
+        wx, wy,
+        sx, sy,
+    )
+    cv2.putText(
+        display, status_1,
+        (10, 440),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (255, 0, 0),
+        2
+    )
+    cv2.putText(
+        display, status_2,
+        (10, 460),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (255, 0, 0),
+        2
+    )
+
+    # Draw average position
+    cv2.circle(display, center, 5, (0, 0, 255), -1)
+
+    # Draw calibration points
+    for i in range(0, 8, 2):
+        cv2.circle(
+            display,
+            (int(srcMat[i] * vw), int(srcMat[i+1] * vh)),
+            5, (0, 255, 0), -1
         )
-        cv2.putText(
-            display, status_1,
-            (10, 440),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (255, 0, 0),
-            2
-        )
-        cv2.putText(
-            display, status_2,
-            (10, 460),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (255, 0, 0),
-            2
-        )
 
-        # Draw average position
-        cv2.circle(display, center, 5, (0, 0, 255), -1)
-
-        # Draw calibration points
-        for i in range(0, 8, 2):
-            cv2.circle(
-                display,
-                (int(srcMat[i] * vw), int(srcMat[i+1] * vh)),
-                5, (0, 255, 0), -1
-            )
-
-        # Draw to window
-        cv2.imshow(windowName, display)
+    # Draw to window
+    cv2.imshow(windowName, display)
 
     # Process key events
     key = cv2.waitKey(1) & 0xFF
@@ -174,12 +189,18 @@ while True:
             srcMat[i+1] = center[1] / vh
             if calibrationState == 4:
                 warpMat = warp.computeWarp(srcMat, dstMat)
+
+                config.set("Calibration", "source", ' '.join(map(str, srcMat)))
+                config.set("Calibration", "warp", ' '.join(map(str, warpMat)))
+                with open("settings.ini", "w") as f:
+                    config.write(f)
+
                 calibrationState = 0
             else:
                 calibrationState += 1
     elif key == ord("e"):
         enabled = not enabled
-        
+
     # X button
     if cv2.getWindowProperty(windowName, cv2.WND_PROP_VISIBLE) < 1:
         break
