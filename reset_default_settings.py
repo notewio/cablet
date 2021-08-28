@@ -18,7 +18,7 @@ config['Main'] = {
     "contouring": "True",
 
     "interp": "0.9",
-    "noshake": "4"
+    "noshake": "2"
 }
 config['Calibration'] = {
     "source": "0 0 1 0 0 1 1 1",

@@ -95,6 +95,7 @@ while True:
     mask = cv2.dilate(mask, None, iterations=DILATE_ITERATIONS)
 
     # Find the appropriate
+    c = None
     if CONTOURING:
         contours, hierarchy = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
                                                     cv2.CHAIN_APPROX_SIMPLE)
@@ -104,8 +105,10 @@ while True:
         # Just calculate average position of all points
         c = mask
 
-
-    newpos = tuple(c[c[:, :, 1].argmax()][0])
+    if c is not None:
+        newpos = tuple(c[c[:, :, 1].argmax()][0])
+    else:
+        newpos = (0, 0)
 
     # Center point: less noisy but also unintuitive to use
     # M = cv2.moments(c)
