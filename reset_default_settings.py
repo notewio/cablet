@@ -10,6 +10,8 @@ config['Main'] = {
     "screen_width": "1920",
     "screen_height": "1080",
 
+    "camera_index": "0",
+
     "color_lower_bound": "60 32 28",
     "color_upper_bound": "130 255 255",
 
@@ -17,7 +19,7 @@ config['Main'] = {
 
     "contouring": "True",
 
-    "interp": "0.9",
+    "interp": "0",
     "noshake": "2"
 }
 config['Calibration'] = {

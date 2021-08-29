@@ -47,6 +47,9 @@ INTERP = config.getfloat("Main", "interp")
 # Don't move the cursor unless the difference is this large (manhattan, camera coordinates) (0 for off)
 NOSHAKE = config.getint("Main", "noshake")
 
+# Index of which camera to use
+CAMERA_INDEX = config.getint("Main", "camera_index")
+
 
 # Warping
 srcMat = [float(x) for x in config.get("Calibration", "source").split()]
@@ -72,7 +75,7 @@ csx, csy = 0, 0
 enabled = False
 
 # Start the video feed
-cap = ThreadedVideo()
+cap = ThreadedVideo(src=CAMERA_INDEX)
 vw, vh = cap.cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
 cap.start()
 frame = cap.read()
