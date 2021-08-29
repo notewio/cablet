@@ -9,7 +9,7 @@ You will need:
 * Background that contrasts with the colored tip
 * Webcam
 
-Download either the compiled executable from [the releases page](https://github.com/notewio/cablet/releases/tag/release), or the source code (needs opencv, numpy and win32api).
+Download either the compiled executable from [the releases page](https://github.com/notewio/cablet/releases), or the source code (needs opencv, numpy and win32api).
 
 Position the webcam so that as much of the colored tip is visible at all possible positions. It can also be helpful to lower the camera's exposure time (reduces motion blur).
 
