@@ -124,7 +124,10 @@ while True:
         center = newpos
 
     wx, wy = warp.warp(warpMat, center[0]/vw, center[1]/vh) # Calculate warping
-    sx, sy = int(wx*sw), int(wy*sh)                         # Scale to screen size
+    if not (np.isinf(wx) or np.isinf(wy)):                  # Prevent NaN
+        sx, sy = int(wx*sw), int(wy*sh)                     # Scale to screen size
+    else:
+        sx, sy = 0, 0
 
     # Set cursor position
     if enabled:
